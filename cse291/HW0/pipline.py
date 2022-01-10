@@ -1,3 +1,4 @@
+import os
 
 import torch
 import torchvision
@@ -80,7 +81,10 @@ def check_accuracy(loader, model, device="cuda"):
 
 def save_predictions_as_imgs(
     loader, model, folder="saved_images/", device="cuda"
-):
+):  
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)

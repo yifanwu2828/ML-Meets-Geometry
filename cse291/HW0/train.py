@@ -116,6 +116,7 @@ def main():
     
 
     for epoch in range(args.num_epoch):
+        print(f"iteration: {epoch+1}")
         train(train_loader, model, optimizer, loss_fn, scaler, device)
         check_accuracy(valid_loader, model, device=device)
         save_checkpoint(

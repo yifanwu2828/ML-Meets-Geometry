@@ -18,7 +18,6 @@ except ImportError:  # Graceful fallback if IceCream isn't installed.
 
 
 def predict(model, test_images, save_dir, device):
-    # model.eval()
     
     plt.figure(figsize=(10, 10))
     

@@ -4,11 +4,8 @@ import torch
 
 import matplotlib.pyplot as plt
 
-from cse291.HW0.model import UNET
-from cse291.HW0.pipline import (
-    load_checkpoint,
-    save_predictions_as_imgs,
-)
+from cse291.HW0.Unet_model import UNET
+from cse291.HW0.pipline import load_checkpoint
 
 try:
     from icecream import install  # noqa

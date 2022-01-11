@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from cse291.commons.utils import set_random_seed
 import cse291.commons.pytorch_util as ptu
-from cse291.HW0.model import UNET
+from cse291.HW0.Unet_model import UNET
 from cse291.HW0.pipline import (
     load_checkpoint,
     save_checkpoint,

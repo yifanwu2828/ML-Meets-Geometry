@@ -1,6 +1,4 @@
-# These are some convenient functions to create open3d geometries and plot them
-# The viewing direction is fine-tuned for this problem, you should not change them
-from math import cos, sin, pi
+from math import pi, cos, sin
 
 import open3d as o3d
 
@@ -12,6 +10,9 @@ from icecream import ic
 # semi-axis
 a, b, c = 1, 1, 0.5
 
+vis = o3d.visualization.Visualizer()
+vis.create_window(visible = False)
+all_gemos = None
 
 def draw_geometries(geoms):
     for g in geoms:
@@ -27,9 +28,10 @@ def draw_geometries(geoms):
     plt.imshow(np.asarray(img)[::-1, ::-1])
     for g in geoms:
         vis.remove_geometry(g)
+    plt.show()    
 
 
-def create_arrow_from_vector(origin, vector):
+def create_arrow_from_vector(origin, vector, color = [1, 0, 1]):
     """
     origin: origin of the arrow
     vector: direction of the arrow
@@ -38,9 +40,9 @@ def create_arrow_from_vector(origin, vector):
     v /= np.linalg.norm(v)
     z = np.array([0, 0, 1])
     angle = np.arccos(z @ v)
-
+    
     arrow = o3d.geometry.TriangleMesh.create_arrow(0.05, 0.1, 0.25, 0.2)
-    arrow.paint_uniform_color([1, 0, 1])
+    arrow.paint_uniform_color(color)
     T = np.eye(4)
     T[:3, 3] = np.array(origin)
     T[:3, :3] = o3d.geometry.get_rotation_matrix_from_axis_angle(np.cross(z, v) * angle)
@@ -76,6 +78,7 @@ def create_lines(points):
         lines.append(cylinder)
     return lines
 
+
 def collect_gemos():
     """
     exapmle code to draw ellipsoid, curve, and arrows
@@ -90,12 +93,9 @@ def collect_gemos():
             dtype=np.float64,
         )
     )
-    # store them in a list
-    geoms = [ellipsoid, cf, arrow] + curve
-    return geoms
+    return ellipsoid, cf, arrow , curve
 
 # -----------------------------------------------------------------------------
-
 
 def f(u, v):
     "map f : R2 -> R3 | (u,v) to (x,y,z)"
@@ -108,7 +108,7 @@ def f(u, v):
     ])
 
 
-def D_fp(u, v):
+def D_fp(u,v):
     return np.array(
         [
             [-a * sin(u) * sin(v), a * cos(u) * cos(v)],
@@ -116,6 +116,15 @@ def D_fp(u, v):
             [0, -c * sin(v)],
         ]
     )
+   
+
+def surface_normal(u,v):
+    dfp = D_fp(u,v)
+    fu = dfp[:, 0]
+    fv = dfp[:, 1]
+    cross = np.cross(fu, fv)
+    norm = np.linalg.norm(cross)
+    return cross / norm
 
 
 def gamma(t):
@@ -129,69 +138,52 @@ def gamma(t):
     return gamma_t
 
 
-def Q2():
+def Q2(geoms):
     """
     Let p = ( pi/4 , pi/6 ) and v = (1, 0). Draw the curve of ( f ◦ γ)(t) on the surface
     of the ellipsoid.
     """
-    u, v = pi / 4, pi / 6
-    p0 = np.array([u, v])
+    p = np.array([pi / 4, pi / 6])
 
-    ts = np.arange(0, 1, 0.01)
-    gamma_t = np.array([gamma(t) for t in ts])
+    time_steps = np.arange(0, 1, 0.01)
+    gamma_t = np.array([gamma(t) for t in time_steps])
+                        
+    curve2D = np.vstack([p, gamma_t])
 
-    curve2D = np.vstack([p0, gamma_t])
-
-    f_curve3D = np.asarray([f(u, v) for u, v in curve2D])
-
+    f_curve3D = np.asarray([f(u, v).ravel() for u, v in curve2D])
+    
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(f_curve3D)
+    geoms_with_curve = geoms + [pcd]
+    draw_geometries(geoms_with_curve)
 
-    # exapmle code to draw ellipsoid, curve, and arrows
-    arrow = create_arrow_from_vector([0.0, 0.0, 1.0], [1.0, 1.0, 0.0])
-    ellipsoid = create_ellipsoid(a, b, c)
-    cf = o3d.geometry.TriangleMesh.create_coordinate_frame()
-    cf.scale(1.5, (0, 0, 0))
+def flatten2list(arr):
+    return arr.flatten().tolist()
 
-    curve = create_lines(
-        np.array(
-            [[1, 1, 1], [-1, 1, 1], [-1, -1, 1], [1, -1, 1], [1, 1, 1]],
-            dtype=np.float64,
-        )
-    )
-    draw_geometries([ellipsoid, cf, arrow] + curve + [pcd])
-    plt.show()
+def Q3(geoms):
+    p = [pi/4, pi/6]
+    v = np.array([1, 0]).reshape(2, 1)
+    Dfp = D_fp(*p)
 
+    Dfp_v = Dfp @ v
+    ic(Dfp_v)
 
+    fp = f(*p).flatten()
+    Dfpv_arrow =  create_arrow_from_vector(flatten2list(fp), flatten2list(Dfp_v), color=[1, 0.706, 0])
+    geoms_with_arrow = geoms + [Dfpv_arrow]
+    draw_geometries(geoms_with_arrow)
+    
 
 
 if __name__ == "__main__":
-    # vis = o3d.visualization.Visualizer()
-    # vis.create_window(visible = False)
 
-    #  # (2)
-    # u, v = [pi/4, pi/6]
-    # p0 = np.array([u, v])
-
-    # ts = np.arange(0, 1, 0.01)
-    # gamma_t = np.array([gamma(t) for t in ts])
-
-    # curve2D =  np.vstack([p0, gamma_t])
-
-    # f_curve3D = np.asarray([f(u, v) for u, v in curve2D])
-
-    # pcd = o3d.geometry.PointCloud()
-    # pcd.points = o3d.utility.Vector3dVector(f_curve3D)
-
-    # # a = D_fp(u, v)
-    # # arrow_Df = create_arrow_from_vector([0.,0.,1.], [1.,1.,0.])
-
-    # # ic(a)
-
-    # geoms = collect_gemos()
-
-    # geoms.append(pcd)
-    # # draw_geometries([ellipsoid, cf, arrow] + curve + [pcd])
-    # draw_geometries(geoms)
-
-    pass
+    ellipsoid, cf, arrow , curve = collect_gemos()
+    orignal_gemos = [ellipsoid, cf, arrow] + curve
+    # o3d.visualization.draw_geometries(all_gemos)
+    
+    
+    # # (2)
+    Q2(orignal_gemos)
+   
+    # (3)
+    Q3(orignal_gemos)

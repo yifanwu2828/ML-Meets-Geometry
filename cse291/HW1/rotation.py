@@ -4,7 +4,7 @@ from pprint import pprint
 import open3d as o3d
 
 import numpy as np
-import scipy.linalg as LA
+import numpy.linalg as LA
 from scipy import misc
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt

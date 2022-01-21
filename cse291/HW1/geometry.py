@@ -5,6 +5,7 @@ from math import pi, cos, sin
 import open3d as o3d
 
 import numpy as np
+
 import matplotlib.pyplot as plt
 from icecream import ic
 
@@ -15,6 +16,16 @@ a, b, c = 1, 1, 0.5
 vis = o3d.visualization.Visualizer()
 vis.create_window(visible=False)
 all_gemos = None
+
+colormap = {
+    "red": [1, 0, 0],
+    "green": [0, 1, 0],
+    "blue": [0, 0, 1],
+    "yellow": [1, 0.706, 0],
+    "black": [0, 0, 0],
+    "white": [1, 1, 1],
+}
+
 
 def draw_geometries(geoms):
     for g in geoms:
@@ -133,19 +144,9 @@ def get_D_fp(u, v):
             [0, -c * sin(v)],
         ]
     )
+    
 
-
-def get_surface_normal(u, v):
-    D_fp = get_D_fp(u, v)
-    f_u = D_fp[:, 0]
-    f_v = D_fp[:, 1]
-
-    N = np.cross(f_u, f_v)
-    N /= np.linalg.norm(N)
-    return N
-
-
-def get_D_Np(u, v, norm):
+def get_D_Np(u, v):
     
     return np.array(
         [
@@ -185,7 +186,7 @@ def flatten2list(arr):
     return arr.flatten().tolist()
 
 
-def Q3_c(geoms, use_viewer=False):
+def Q3_c(geoms, color, use_viewer=False, ):
     """"""
     p = [pi / 4, pi / 6]
     v = np.array([1, 0]).reshape(2, 1)
@@ -194,7 +195,7 @@ def Q3_c(geoms, use_viewer=False):
 
     fp = f(p[0], p[1])
     Dfpv_arrow = create_arrow_from_vector(
-        flatten2list(fp), flatten2list(Dfp_v), color=[1, 0.706, 0]
+        flatten2list(fp), flatten2list(Dfp_v), color
     )
     geoms_with_Dfp = geoms + [Dfpv_arrow]
 
@@ -205,15 +206,24 @@ def Q3_c(geoms, use_viewer=False):
     return Dfpv_arrow
 
 
-def Q3_d(geoms, use_viewer=False):
+def Q3_d(geoms, color, use_viewer=False):
     """
     what is the normal vecotr of the tangent plant at p
     N(u,v) = f_u X f_v / ||f_u X f_v||
     """
     u, v = [pi / 4, pi / 6]
-    N = get_surface_normal(u, v)
+    D_fp = get_D_fp(u, v)
+    f_u = D_fp[:, 0]
+    f_v = D_fp[:, 1]
+
+    N = np.cross(f_u, f_v)
+    N /= np.linalg.norm(N)
+      
+    assert(N@f_u < 1e-6)
+    assert(N@f_v < 1e-6)
+         
     N_arrow = create_arrow_from_vector(
-        flatten2list(f(u, v)), flatten2list(N), color=[1, 0, 0]
+        flatten2list(f(u, v)), flatten2list(N), color
     )
     geoms_with_surface_normal = geoms + [N_arrow]
     if use_viewer:
@@ -222,6 +232,30 @@ def Q3_d(geoms, use_viewer=False):
         draw_geometries(geoms_with_surface_normal)
     return N_arrow
 
+def Q3_e(geoms, color, use_viewer=False):
+    u, v = [pi / 4, pi / 6]
+    X = np.array([1, 0]).reshape(2, 1)
+    D_fp = get_D_fp(u, v)
+    f_u = D_fp[:, 0]
+    f_v = D_fp[:, 1]
+
+    N = np.cross(f_u, f_v)
+    N /= np.linalg.norm(N)
+    
+    # binormal vector  
+    B = np.cross((D_fp@X).flatten(), N)
+    B /= np.linalg.norm(B)
+    
+    B_arrow = create_arrow_from_vector(
+        flatten2list(f(u, v)), flatten2list(B), color=[1,1,0]
+    )
+    geoms_with_binormal = original_gemos + [B_arrow]
+    if use_viewer:
+        o3d.visualization.draw_geometries(geoms_with_binormal)
+    else:
+        draw_geometries(geoms_with_binormal)
+    return B_arrow
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -229,23 +263,30 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     ellipsoid, cf, arrow, curve = collect_gemos()
-    orignal_gemos = [ellipsoid, cf, arrow] + curve
-    all_gemos = orignal_gemos
+    original_gemos = [ellipsoid, cf, arrow] + curve
+    all_gemos = original_gemos
 
-    # # (2)
-    # curve3D = Q2(orignal_gemos, args.use_viewer)
-    # all_gemos.append(curve3D)
+    # (2)
+    curve3D = Q2(original_gemos, args.use_viewer)
+    all_gemos.append(curve3D)
 
-    # # (3)c
-    # tangent3D = Q3_c(orignal_gemos, args.use_viewer)
-    # all_gemos.append(tangent3D)
+    # (3)c
+    tangent3D = Q3_c(original_gemos, colormap["black"], args.use_viewer)
+    all_gemos.append(tangent3D)
 
-    # # (3)d
-    # surfanceNorm3D = Q3_d(orignal_gemos, args.use_viewer)
+    # (3)d
+    # surfanceNorm3D = Q3_d(original_gemos, colormap["yellow"], args.use_viewer)
     # all_gemos.append(surfanceNorm3D)
-    # o3d.visualization.draw_geometries(all_gemos)
+    
+    # (3)e
+    B_3D = Q3_e(original_gemos, colormap["white"], use_viewer=args.use_viewer)
+    all_gemos.append(B_3D)
+    
+    o3d.visualization.draw_geometries(all_gemos)
+    
+    
 
-
+    
 
 
     

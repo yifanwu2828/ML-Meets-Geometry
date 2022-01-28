@@ -4,10 +4,13 @@ from pprint import pprint
 import open3d as o3d
 
 import numpy as np
-import numpy.linalg as LA
 from scipy import misc
+import scipy.linalg as LA
+
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+
+from tqdm import tqdm
 
 # Note Matplotlib is only suitable for simple 3D visualization.
 # For later problems, you should not use Matplotlib to do the plotting
@@ -243,48 +246,83 @@ def compare_points(points1, points2):
     ax.scatter(points2[0], points2[2], points2[1])
 
 
-def newtonsMethod(f, x0, tol=1.48e-08, max_iter=100):
-    x = x0
-    for itr in range(max_iter):
-        df = misc.derivative(f, x, dx=1e-6)
-        ic(df.shape)
-        x1 = x - f(x) / df
-        if abs(x1 - x) < tol:
-            print(f"the root was found to be at {x1} after {itr} iterations")
-            return x1
-        x = x1
-    print("Maximum number of iterations exceeded")
+
+
+def hw0_solve(A, b, eps):
+    x, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+    # case 1
+    if x.T @ x < eps:
+        return x
+    # case 2
+    d, U = np.linalg.eigh(A.T@A) # SVD of A may be faster
+    k = U.T@(A.T@b)
+    def func(lam):
+        return ((k / (d + 2 * lam))**2).sum() - eps
+    def dfunc(lam):
+        return -4 * ((k**2 / (d+2*lam)**3)).sum()
+    # Newton, should converge in less than 10 iterations
+    lam = 0
+    while True:
+        lam2 = lam - func(lam) / dfunc(lam)
+        if abs(lam-lam2) < 1e-6:
+            break
+        lam = lam2
+    x = U@(np.diag(1/(d + 2 * lam))@(U.T@(A.T@b)))
     return x
 
-
-def hw0_solve(A, b, eps=1):
-    """
-    To find x
-    x = h(\lambda))
-    """
-    I = np.eye(A.shape[1])
-    h = lambda l: LA.inv(A.T @ A + 2 * l * I) @ A.T @ b
-    f = lambda l: h(l).T @ h(l) - eps
-
-    l0 = 0
-    l = newtonsMethod(f, l0, eps, max_iter=100)
-
-    return h(l)
+def calcuA(R, X):
+    A = R @ vec2skew(X[:, 0])
+    for i in range(1, X.shape[1]):
+        b = R @ vec2skew(X[:, i])
+        A = np.vstack((A, b))
+    return -A
 
 
-if __name__ == "__main__":
+def calcuB(R, X, Y):    
+    B = (R @ X[:, 0] - Y[:, 0]).reshape(3, 1)
+    for i in range(1, X.shape[1]):
+        b = (R @ X[:, i] - Y[:, i]).reshape(3, 1)
+        B = np.vstack((B, b))
+    return -B
+
+def Q3_C():
     npz = np.load("data/HW1_P1.npz")
     X = npz["X"]
     Y = npz["Y"]
     ic(X.shape, Y.shape)
-    compare_points(X, Y)  # noisy teapotsand
 
-    # # implemntation of Q3
-    # R1 = np.eye(3)
-    # # solve this problem here, and store your final results in R1
-    # for _ in range(1):
-    #     hw0_solve(R1@X, Y, eps=1)
-    # # Testing code, you should see the points of the 2 teapots roughly overlap
-    # compare_points(R1@X, Y)
-    # # plt.show()
-    # print(R1.T@R1)
+    # implementation of Q3
+    I = np.eye(3)
+    R = np.eye(3)
+    old_R = R.copy()
+    
+    for i in tqdm(range(100)):
+        A = calcuA(R, X)
+        B = calcuB(R, X, Y)
+        
+        delta_w = hw0_solve(A, B, eps=1)
+        R = R @ LA.expm(vec2skew(delta_w))
+        np.testing.assert_allclose (R.T@R, I, rtol=1e-05, atol=1e-08)
+        
+        if np.allclose(R, old_R):
+            print("converged at iteration {}".format(i))
+            break
+        old_R = R.copy()
+        
+    # Testing code, you should see the points of the 2 teapots roughly overlap
+    compare_points(R@X, Y)
+    plt.show()
+    print(R.T@R)
+
+def Q3_D():
+    """
+    Use your algorithm to solve the point cloud data alignment
+    problem with our provided data
+    """
+    pass
+    
+
+
+if __name__ == "__main__":
+    
+    pass
